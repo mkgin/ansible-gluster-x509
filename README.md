@@ -1,4 +1,4 @@
-Role Name : Gluster X509 Ansilble role
+Role Name : Gluster X509 Ansible role
 =========
 
 Prepares gluster clients and servers to run using SSL/TLS with self-signed certificates
