@@ -1,0 +1,25 @@
+---
+# defaults file for gluster-x509
+# type of certificate
+gluster_x509_signing:  self_signed
+# ca bundle creation and maintenance location (on the localhost that runs ansible)
+gluster_x509_local_ca_bundle_dir: /tmp/test_gluster_x509 
+# ca path
+gluster_x509_ca_bundle_path:   /etc/ssl/glusterfs.ca
+#private key
+gluster_x509_private_key_path: /etc/ssl/glusterfs.key
+gluster_x509_private_key_bits: 2048
+# certificate and certificate request
+gluster_x509_certificate_subject: "/CN={{ ansible_hostname }}"
+gluster_x509_cert_request_path: /etc/ssl/glusterfs.csr
+gluster_x509_certificate_path: /etc/ssl/glusterfs.pem
+gluster_x509_certificate_days: 400
+# Diffie-Hellman
+gluster_x509_dh_param_generate: False
+gluster_x509_dh_param_path: /etc/ssl/dhparam.pem 
+gluster_x509_dh_param_bits: 4096 # 4096 takes a while.
+
+# Set to true to testing as local nonroot user
+gluster_assume_openssl_package_installed: False
+# Set to False to testing as local nonroot user
+gluster_var_lib_glusterd_secure_access: True

@@ -1,0 +1,22 @@
+---
+# Self-signed certificate bundle CA update
+# update-self-signed-cert-bundle-ca.yml
+
+- name: Add self signed certificate to local certificate collection 
+# could do this with a new clean tmp dir  
+  fetch:
+    src: "{{ gluster_x509_certificate_path }}"
+    dest: "{{ gluster_x509_local_ca_bundle_dir }}/{{ ansible_hostname }}_glusterfs.pem"
+    flat: True
+
+- name: Update local certificate bundle CA
+# should check that the location exists and is writeable
+  local_action: shell cat {{ gluster_x509_local_ca_bundle_dir }}/*_glusterfs.pem > {{ gluster_x509_local_ca_bundle_dir }}/glusterfs.ca
+
+- name: Deploy updated bundle CA to gluster servers and clients 
+# consider seperate bundles for servers and clients?
+# clients only need server certs 
+# server need client and server certs
+  copy:
+    src: "{{ gluster_x509_local_ca_bundle_dir }}/glusterfs.ca"
+    dest: "{{ gluster_x509_ca_bundle_path }}"

@@ -1,0 +1,13 @@
+---
+# touch_secure_access.yml
+
+- name: create directory /var/lib/glusterd
+  file:
+    path: /var/lib/glusterd
+    state: directory
+    mode: 0755
+- name: touch /var/lib/glusterd/secure-access
+  file:
+    path: /var/lib/glusterd/secure-access
+    state: touch
+    mode: 0644

@@ -1,0 +1,6 @@
+- name: OpenSSL installed
+  yum:
+    name: 
+      - openssl
+    state: present
+
