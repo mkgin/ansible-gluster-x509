@@ -2,20 +2,20 @@
 # tasks file for gluster-x509
 
 - name: install openssl
-  include: install_openssl_package.yml
+  import_tasks: install_openssl_package.yml
   when: not gluster_assume_openssl_package_installed
 
 - name: Enable secure access
-  include: touch_secure_access.yml
+  import_tasks: touch_secure_access.yml
   when: gluster_var_lib_glusterd_secure_access
 
 - name: Generating Diffie Helmann Parameters (may take a while) 
   command: "openssl dhparam -out {{ gluster_x509_dh_param_path | quote }} {{gluster_x509_dh_param_bits | quote}}"
   args:
-    creates: "{{ gluster_x509_dh_param_path }}"    # don't do it present again
-  when: gluster_x509_dh_param_generate          # and not present or regenerate 
+    creates: "{{ gluster_x509_dh_param_path }}"    # don't do it again if present
+  when: gluster_x509_dh_param_generate          # do it this is true
 
-- name: Generate RSA private key with {{ gluster_x509_private_key_bits }} bits
+- name: Generate RSA private key with
   command: "openssl genrsa -out {{gluster_x509_private_key_path | quote}} {{gluster_x509_private_key_bits | quote}}"
   args:
     creates: "{{ gluster_x509_private_key_path }}"
@@ -28,7 +28,7 @@
 # it is a reasonable workaround
 #  when:  when there is no certificate, when a certificate is old, about to expire, forced
 
-- name: Generate self signed certificate ( or eventually get it signed )
+- name: Generate self signed certificate
   command: "openssl x509 -signkey {{ gluster_x509_private_key_path }} -in {{ gluster_x509_cert_request_path }} -req -out {{ gluster_x509_certificate_path}} -days {{ gluster_x509_certificate_days }}"
   args:
     creates: "{{ gluster_x509_certificate_path }}"
@@ -42,8 +42,19 @@
     msg: "STDERR: {{ generate_self_signed_cert.stderr }}"
   when: generate_self_signed_cert.stderr is defined
 
+- name: Fetch certificate request to sign with local certificate request
+  fetch:
+    src: "{{ gluster_x509_cert_request_path }}"
+    dest: "{{ gluster_x509_local_ca_requests_dir }}/{{ ansible_hostname }}_.csr"
+    flat: True
+  when:  gluster_x509_signing == "local_ca"
+
+- name: Sign certificate using local CA
+  import_tasks: sign_certificate_with_local_ca.yml
+  when:  gluster_x509_signing == "local_ca"
+
 - name: Check certificate expiry
-  shell: echo $(( ($(date +%s --date="$( openssl x509 -in  {{ gluster_x509_certificate_path }} -enddate -noout |sed 's/notAfter=//')") - $(date +%s)) / 86400 ))
+  shell: echo $(( ($(date +%s --date="$( openssl x509 -in  {{ gluster_x509_certificate_path }} -enddate -noout |sed 's/notAfter=//')") - $(date +%s)) / 86400 )
   register: certificate_days_left
 
 - debug: 
@@ -60,24 +71,11 @@
     - certificate_days_left.stdout|int < 40
 
 - name: Self-signed certificate bundle CA update
-  include: update-self-signed-cert-bundle-ca.yml
+  import_tasks: update-self-signed-cert-bundle-ca.yml
   when: gluster_x509_signing == "self_signed"
 
-    # - name: Add self signed certificate to local certificate collection 
-    #   # could do this with a new clean tmp dir  
-    #   fetch:
-    #     src: "{{ gluster_x509_certificate_path }}"
-    #     dest: "{{ gluster_x509_local_ca_bundle_dir }}/{{ ansible_hostname }}_glusterfs.pem"
-    #     flat: True
-    # - name: Update local certificate bundle CA
-    # # should check that the location exists and is writeable
-    # - local_action: shell "cat {{ gluster_x509_local_ca_bundle_dir }}/{{ ansible_hostname }}_glusterfs.pem > {{ gluster_x509_local_ca_bundle_dir }}/glusterfs.ca"
-    # #
-    # - name: Deploy updated bundle CA to gluster servers and clients 
-    #   # consider seperate bundles for servers and clients?
-    #   # clients only need server certs 
-    #   # server need client and server certs
-    # - copy:
-    #     src: "{{ gluster_x509_local_ca_bundle_dir }}/glusterfs.ca"
-    #     dest: "{{ gluster_x509_ca_bundle_path }}"
-
+- name: copy CA file to host
+  copy:
+    src:  "{{ gluster_x509_local_ca_certificate }}"
+    dest: "{{ gluster_x509_ca_bundle_path }}" 
+  when: gluster_x509_signing == "local_ca"

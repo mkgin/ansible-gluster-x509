@@ -1,6 +1,6 @@
 ---
 # defaults file for gluster-x509
-# type of certificate
+# type of certificate self_signed or local_ca
 gluster_x509_signing:  self_signed
 # ca bundle creation and maintenance location (on the localhost that runs ansible)
 gluster_x509_local_ca_bundle_dir: /tmp/test_gluster_x509 
@@ -14,10 +14,22 @@ gluster_x509_certificate_subject: "/CN={{ ansible_hostname }}"
 gluster_x509_cert_request_path: /etc/ssl/glusterfs.csr
 gluster_x509_certificate_path: /etc/ssl/glusterfs.pem
 gluster_x509_certificate_days: 400
+# TODO: renew certificate if close to expiry (would need to handle restarting etc.
+gluster_x509_certificate_renew: False 
+
 # Diffie-Hellman
 gluster_x509_dh_param_generate: False
 gluster_x509_dh_param_path: /etc/ssl/dhparam.pem 
 gluster_x509_dh_param_bits: 4096 # 4096 takes a while.
+
+# not used if self signed
+gluster_x509_local_ca_path:    /tmp/localcatest
+gluster_x509_local_ca_config:  /tmp/localcatest/openssl.cnf
+gluster_x509_local_ca_passphrase: secret
+gluster_x509_local_ca_privatekey: "{{gluster_x509_local_ca_path}}/private/cakey.pem"
+gluster_x509_local_ca_requests: "{{gluster_x509_local_ca_path}}/requests/"
+gluster_x509_local_ca_newcerts: "{{gluster_x509_local_ca_path}}/newcerts/"
+gluster_x509_local_ca_certificate: "{{gluster_x509_local_ca_path}}/cacert.pem"
 
 # Set to true to testing as local nonroot user
 gluster_assume_openssl_package_installed: False

@@ -1,0 +1,20 @@
+---
+- name: Signing with local CA
+  command: "openssl ca -config {{ gluster_x509_local_ca_config }} -out {{ gluster_x509_local_ca_newcerts_dir }}/{{ ansible_hostname }}_.pem -infiles {{ gluster_x509_local_ca_requests_dir }}/{{ ansible_hostname }}_.csr -policy policy_anything -passin stdin"
+  args:
+    stdin: "{{ gluster_x509_local_ca_passphrase }}"
+  delegate_to: localhost
+
+#" -signkey {{ gluster_x509_private_key_path }} -in {{ gluster_x509_cert_request_path }} -req -out {{ gluster_x509_certificate_path}} -days {{ gluster_x509_certificate_days }}"
+#-policy policy_anything -out newcert.pem -infiles newreq.pem
+
+#using key "{{gluster_x509_local_ca_privatekey }}"
+#SIGN THIS REQUEST "{{ gluster_x509_local_ca_requests_dir }}/{{ ansible_hostname }}_.csr"
+#Put cert here "{{ gluster_x509_local_ca_newcerts_dir }}"/{{ ansible_hostname }}_.pem"
+# use passphrase {{gluster_x509_local_ca_passphrase}}
+# -days "{{ gluster_x509_certificate_day }}"
+
+- name: Copy the locally signed certficate to the host
+  copy:
+    src: "{{ gluster_x509_local_ca_newcerts_dir }}/{{ ansible_hostname }}_.pem"
+    dest: "{{ gluster_x509_certificate_path }}"

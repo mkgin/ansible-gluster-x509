@@ -1,0 +1,33 @@
+---
+# test gluster-x509 role
+- hosts: localhost
+  connection: local
+  name: create temporary directories for testing
+  tasks:
+  - tempfile:
+      state: directory
+      suffix: etcssl
+    register: etcssl_dir
+  - tempfile:
+      state: directory
+      suffix: cabundle
+    register: ca_bundle_dir
+  # for testing a local CA could included to unzip or ca could be created
+
+- hosts: localhost
+  connection: local  
+  name: test gluster-x509 role
+  roles: 
+    - gluster-x509
+  vars:
+    - gluster_x509_signing: "local_ca"
+#    - gluster_x509_local_ca_bundle_dir: "{{ca_bundle_dir.path}}" 
+    - gluster_x509_ca_bundle_path: "{{etcssl_dir.path}}/glusterfs.ca"
+    - gluster_x509_private_key_path: "{{etcssl_dir.path}}/glusterfs.key"
+    - gluster_x509_cert_request_path: "{{etcssl_dir.path}}/glusterfs.csr"
+    - gluster_x509_dh_param_path:  "{{etcssl_dir.path}}/dhparam.pem"
+    - gluster_x509_certificate_path: "{{etcssl_dir.path}}/glusterfs.pem"
+    - gluster_x509_dh_param_bits: 512 #testing takes too long otherwise
+    # when not root
+    - gluster_assume_openssl_package_installed: True #don't try to install openssl
+    - gluster_var_lib_glusterd_secure_access: False  #don't touch when 
