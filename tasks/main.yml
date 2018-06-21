@@ -16,12 +16,12 @@
   when: gluster_x509_dh_param_generate          # do it this is true
 
 - name: Generate RSA private key with
-  command: "openssl genrsa -out {{gluster_x509_private_key_path | quote}} {{gluster_x509_private_key_bits | quote}}"
+  command: "openssl genrsa -out {{ gluster_x509_private_key_path | quote}} {{ gluster_x509_private_key_bits | quote}}"
   args:
     creates: "{{ gluster_x509_private_key_path }}"
 
 - name: Generate Certificate Request
-  command: "openssl req -new -key {{gluster_x509_private_key_path}} -out {{ gluster_x509_cert_request_path }} -subj {{ gluster_x509_certificate_subject }}"
+  command: "openssl req -new -key {{ gluster_x509_private_key_path}} -out {{ gluster_x509_cert_request_path }} -subj {{ gluster_x509_certificate_subject }}"
   args:
     creates: "{{ gluster_x509_certificate_path }}"
 # to so dont make cert request if cert is there / above is not true but ... lets see if -\"/CN={{ ansible_hostname }}\"
@@ -54,7 +54,7 @@
   when:  gluster_x509_signing == "local_ca"
 
 - name: Check certificate expiry
-  shell: echo $(( ($(date +%s --date="$( openssl x509 -in  {{ gluster_x509_certificate_path }} -enddate -noout |sed 's/notAfter=//')") - $(date +%s)) / 86400 )
+  shell: echo $(( ($(date +%s --date="$( openssl x509 -in  {{ gluster_x509_certificate_path }} -enddate -noout |sed 's/notAfter=//')") - $(date +%s)) / 86400 ))
   register: certificate_days_left
 
 - debug: 

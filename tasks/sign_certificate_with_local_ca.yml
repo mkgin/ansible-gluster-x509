@@ -1,10 +1,21 @@
 ---
-- name: Signing with local CA
-  command: "openssl ca -config {{ gluster_x509_local_ca_config }} -out {{ gluster_x509_local_ca_newcerts_dir }}/{{ ansible_hostname }}_.pem -infiles {{ gluster_x509_local_ca_requests_dir }}/{{ ansible_hostname }}_.csr -policy policy_anything -passin stdin"
-  args:
-    stdin: "{{ gluster_x509_local_ca_passphrase }}"
-  delegate_to: localhost
+#- name: Display all variables/facts known for a host
+#  debug:
+#    var: hostvars[inventory_hostname]
+#    verbosity: 4
 
+- name: Signing with local CA
+  no_log: "{{ gluster_x509_no_log_passwords | bool }}"
+#  command: "openssl ca {{ gluster_x509_local_ca_config_option }} -batch -out {{ gluster_x509_local_ca_newcerts_dir }}/{{ ansible_hostname }}_.pem -passin pass:{{ gluster_x509_local_ca_passphrase }} -infiles {{ gluster_x509_local_ca_requests_dir }}/{{ ansible_hostname }}_.csr"
+  command: "openssl ca {{ gluster_x509_local_ca_config_option }} -batch -create_serial -out {{ gluster_x509_local_ca_newcerts_dir }}/{{ ansible_hostname }}_.pem -passin pass:{{ gluster_x509_local_ca_passphrase }} -infiles {{ gluster_x509_local_ca_requests_dir }}/{{ ansible_hostname }}_.csr"
+  delegate_to: localhost
+  register: sign_result
+
+
+# todo signing policy option?
+- pause:
+    prompt: "...enter to continue"
+#  when: sign_result.failed
 #" -signkey {{ gluster_x509_private_key_path }} -in {{ gluster_x509_cert_request_path }} -req -out {{ gluster_x509_certificate_path}} -days {{ gluster_x509_certificate_days }}"
 #-policy policy_anything -out newcert.pem -infiles newreq.pem
 
