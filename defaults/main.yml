@@ -28,7 +28,7 @@ gluster_x509_local_ca_path:    /tmp/localcatest
 gluster_x509_local_ca_config_option:  "-config {{gluster_x509_local_ca_path}}/openssl.cnf"
 gluster_x509_local_ca_passphrase: "secret"
 # might do this one...
-gluster_x509_local_ca_policy: ""
+gluster_x509_local_ca_policy: "" #not implemented yet
 gluster_x509_local_ca_privatekey: "{{gluster_x509_local_ca_path}}/private/cakey.pem"
 gluster_x509_local_ca_requests_dir: "{{gluster_x509_local_ca_path}}/requests/"
 gluster_x509_local_ca_newcerts_dir: "{{gluster_x509_local_ca_path}}/newcerts/"
