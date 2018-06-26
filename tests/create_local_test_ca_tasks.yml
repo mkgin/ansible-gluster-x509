@@ -12,6 +12,7 @@
 # The test should be able to generate, request on a local and remote host
 # and sign locally
 
+
 - name: create CA directory structure in configured path
   file: path={{item}} state=directory
   with_items:
@@ -19,19 +20,6 @@
     - "{{gluster_x509_local_ca_path}}/private"
     - "{{gluster_x509_local_ca_path}}/newcerts"
   when: (gluster_x509_local_ca_path is defined) or not(gluster_x509_local_ca_path == "")
-
-- name: create CA directory structure in temporary location
-  tempfile:
-    state: directory
-    suffix: test_ca
-  register: test_ca_dir
-  when: (gluster_x509_local_ca_path is not defined) or (gluster_x509_local_ca_path == "")
-
-- name: set CA path to temporary location
-  set_fact:
-    gluster_x509_local_ca_path: "{{ test_ca_dir.path }}"
-    gluster_x509_local_ca_config_option:  "-config {{ test_ca_dir.path }}/openssl.cnf"
-  when: (gluster_x509_local_ca_path is not defined) or (gluster_x509_local_ca_path == "")
 
 - name: touch index.txt and index.txt.attr
   file:
