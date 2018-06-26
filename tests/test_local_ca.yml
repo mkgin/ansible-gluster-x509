@@ -1,102 +1,101 @@
 ---
 # test gluster-x509 role
-
-- hosts: localhost
-  connection: local
-  name: create temporary directories for testing
+# locally generated test CA
+# on localhost and a remote host
+#
+# connection: local (must be set in inventory if ssh to localhost not possible)
+# gluster_ca_testhosts lists the testhosts  
+#
+# config
+- hosts: localhost gluster_ca_testhosts
+  name: configure vars for test   # these variables should be valid for the rest of this playbook
   tasks:
-  - tempfile:
-      state: directory
-      suffix: etcssl
-    register: etcssl_dir
-  - tempfile:
+  - set_fact:
+      gluster_x509_dh_param_generate: True
+      gluster_x509_local_test_CA_CN: "/CN=test CA"
+      gluster_x509_no_log_passwords: False 
+      gluster_x509_local_ca_path:   "/tmp/gluster_x509_testCA" #tested unset, set, and ""
+      # gluster_x509_test_deploy_tmp: is only used for this test, if it is not defined
+      # a tmp dir is made for testing it is not a role variable
+      gluster_x509_test_deploy_tmp: "/tmp/gluster_x509_testetcssl"
+      # fail_deliberately_at_end is handy if you wan't to look at the contents of the temp dir
+      fail_deliberately_at_end: True 
+  - set_fact:
+      gluster_x509_local_ca_passphrase: "secret"
+      no_log: gluster_x509_no_log_passwords
+
+- hosts: gluster_ca_testhosts # creating the CA should only be done once... (and should be local normally)
+  name: make local ca and other test prerequisites
+  tasks: 
+    # if gluster_x509_local_ca_path is unset, it is set when making the CA temp dir
+  - name: setting config for openssl.cnf in the defined local ca path
+    set_fact:
+      gluster_x509_local_ca_config_option:  "-config {{ gluster_x509_local_ca_path }}/openssl.cnf"
+    when: gluster_x509_local_ca_path is defined
+    delegate_to: localhost
+  - name: create CA directory structure in temporary location
+    tempfile:
       state: directory
       suffix: test_ca
     register: test_ca_dir
-  - set_fact:
-      fail_deliberatly_at_end: True
+    delegate_to: localhost
+    when: (gluster_x509_local_ca_path is not defined) or (gluster_x509_local_ca_path == "")
+  - name: set CA path to temporary location
+    set_fact:
       gluster_x509_local_ca_path: "{{ test_ca_dir.path }}"
-      gluster_x509_local_test_CA_CN: "/CN=test CA"
-#      gluster_x509_no_log_passwords: False
       gluster_x509_local_ca_config_option:  "-config {{ test_ca_dir.path }}/openssl.cnf"
-  - set_fact:
-      gluster_x509_local_ca_passphrase: "secret"
-    no_log: gluster_x509_no_log_passwords
-    # these variables should be valid for the rest of this playbook
-  - name: make CA subdirectories to match defaults
-    file: path={{item}} state=directory
-    with_items:
-      - "{{gluster_x509_local_ca_path}}/requests"
-      - "{{gluster_x509_local_ca_path}}/private"
-      - "{{gluster_x509_local_ca_path}}/newcerts"
-  - name: touch index.txt
-    file:
-      path: "{{item}}"
-      state: touch
-    with_items:
-      - "{{gluster_x509_local_ca_path}}/index.txt"
-      - "{{gluster_x509_local_ca_path}}/index.txt.attr"
+    delegate_to: localhost
+    when: (gluster_x509_local_ca_path is not defined) or (gluster_x509_local_ca_path == "")
+  - import_tasks: create_local_test_ca_tasks.yml
+    delegate_to: localhost
+  run_once: True
 
-- hosts: localhost
-  connection: local  
-  name: make minimal openssl.cnf for test CA
-  tasks:
-  - shell: "echo \"[ ca ]\" >  {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"default_ca      = CA_default \" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"[ CA_default ]\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"dir = {{ gluster_x509_local_ca_path }}/\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"private_key  = \\$dir/private/cakey.pem\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"certificate  = \\$dir/cacert.pem\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"new_certs_dir   = \\$dir/newcerts\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"database       = \\$dir/index.txt\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"default_md      = default\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"policy          = policy_anything\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"serial          = \\$dir/serial\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"default_days    = 365\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"unique_subject = no\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
+- hosts: gluster_ca_testhosts 
+  tasks: 
+  - name: make tmp dir to test installing certificates in simulated local etcssl
+    tempfile:
+      state: directory
+      suffix: etcssl
+    register: etcssl_dir
+    when: (gluster_x509_test_deploy_tmp is not defined)
+  - name: set key, csr and certificate,  when test deploy path not set or empty
+    set_fact:
+      gluster_x509_private_key_path: "{{ etcssl_dir.path }}/glusterfs.key"
+      gluster_x509_cert_request_path: "{{ etcssl_dir.path }}/glusterfs.csr"
+      gluster_x509_dh_param_path: "{{ etcssl_dir.path }}/dhparam.pem"
+      gluster_x509_certificate_path: "{{ etcssl_dir.path }}/glusterfs.pem"
+      gluster_x509_ca_bundle_path: "{{ etcssl_dir.path }}/glusterfs.pem"
+    when: (gluster_x509_test_deploy_tmp is not defined)
+  - name: set key, csr and certificate,  when test deploy path is set 
+    file: 
+      path: "{{ gluster_x509_test_deploy_tmp }}"
+      state: directory
+    when: (gluster_x509_test_deploy_tmp is defined)
+  - name: make tmp dir to test installing certificates
+    set_fact:
+      gluster_x509_private_key_path: "{{ gluster_x509_test_deploy_tmp }}/glusterfs.key"
+      gluster_x509_cert_request_path: "{{ gluster_x509_test_deploy_tmp }}/glusterfs.csr"
+      gluster_x509_dh_param_path: "{{ gluster_x509_test_deploy_tmp }}/dhparam.pem"
+      gluster_x509_certificate_path: "{{ gluster_x509_test_deploy_tmp }}/glusterfs.pem"
+      gluster_x509_ca_bundle_path: "{{ gluster_x509_test_deploy_tmp }}/glusterfs.pem"
+    when: (gluster_x509_test_deploy_tmp is defined)
 
-  - shell: "echo \"[ req ]\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"distinguished_name      = req_distinguished_name\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"[ req_distinguished_name ]\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"commonName                      = Common Name\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"commonName_max                  = 64\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-
-  - shell: "echo \"[ policy_anything ]\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"commonName              = supplied\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  - shell: "echo \"\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-
-- hosts: localhost
-  connection: local  
-  name: make a test CA
-  tasks:
-  - command: "openssl genrsa -out {{ gluster_x509_local_ca_path }}/private/cakey.pem -passout pass:{{ gluster_x509_local_ca_passphrase }}  2048"
-    no_log: "{{ gluster_x509_no_log_passwords | bool }}"
-  - command: "openssl req {{ gluster_x509_local_ca_config_option }} -new -sha256 -subj \"{{ gluster_x509_local_test_CA_CN }}\" -key {{gluster_x509_local_ca_path}}/private/cakey.pem -out {{gluster_x509_local_ca_path}}/ca_key.csr"
-  - command: "openssl x509  -req -CAcreateserial -CAserial {{ gluster_x509_local_ca_path }}/serial -sha256 -signkey {{ gluster_x509_local_ca_path }}/private/cakey.pem -days 1 -passin pass:{{ gluster_x509_local_ca_passphrase }} -in {{ gluster_x509_local_ca_path }}/ca_key.csr -out {{ gluster_x509_local_ca_path }}/cacert.pem" 
-    no_log: "{{ gluster_x509_no_log_passwords | bool }}"
-
-- hosts: localhost
-  connection: local  
+- hosts: gluster_ca_testhosts 
   name: test gluster-x509 role
   roles: 
     - gluster-x509
-  vars:
+  vars: 
     - gluster_x509_signing: "local_ca"
-#    - gluster_x509_local_ca_bundle_dir: "{{ca_bundle_dir.path}}" 
-    - gluster_x509_ca_bundle_path: "{{etcssl_dir.path}}/glusterfs.ca"
-    - gluster_x509_private_key_path: "{{etcssl_dir.path}}/glusterfs.key"
-    - gluster_x509_cert_request_path: "{{etcssl_dir.path}}/glusterfs.csr"
-    - gluster_x509_dh_param_path:  "{{etcssl_dir.path}}/dhparam.pem"
-    - gluster_x509_certificate_path: "{{etcssl_dir.path}}/glusterfs.pem"
     - gluster_x509_dh_param_bits: 512 #testing takes too long otherwise
-    # when not root
+    # when not running as root these are necessary
     - gluster_assume_openssl_package_installed: True #don't try to install openssl
     - gluster_var_lib_glusterd_secure_access: False  #don't touch when testing
 
-- hosts: localhost
-  connection: local
+# if we made it this far could even check the certs
+
+- hosts: localhost gluster_ca_testhosts
   name: fail deliberately at end
   tasks:
   - fail:
-      msg: "Failing deliberately so you can look at the temp directories"
-    when: fail_deliberatly_at_end
+      msg: "Failing deliberately so you can look at ansible temporary directories"
+    when: fail_deliberately_at_end
