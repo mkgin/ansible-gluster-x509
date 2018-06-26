@@ -7,11 +7,10 @@
 # - creates minimal files needed for functioning openssl CA
 # - creates key, cert req and cert... 
 # 
-# - creates a tmp space for host certificates if gluster_x509_certificate_path is not set
-#
 # The typically these tasks are run only on localhost... ( the one that runs ansible)
 # 
-# The test should be able to sign certificates on a local and remote host
+# The test should be able to generate, request on a local and remote host
+# and sign locally
 
 - name: create CA directory structure in configured path
   file: path={{item}} state=directory
@@ -19,19 +18,20 @@
     - "{{gluster_x509_local_ca_path}}/requests"
     - "{{gluster_x509_local_ca_path}}/private"
     - "{{gluster_x509_local_ca_path}}/newcerts"
-  when: gluster_x509_local_ca_path is defined or gluster_x509_local_ca_path != ''
+  when: (gluster_x509_local_ca_path is defined) or not(gluster_x509_local_ca_path == "")
 
 - name: create CA directory structure in temporary location
   tempfile:
     state: directory
     suffix: test_ca
   register: test_ca_dir
-  when: gluster_x509_local_ca_path is not set or gluster_x509_local_ca_path == ''
+  when: (gluster_x509_local_ca_path is not defined) or (gluster_x509_local_ca_path == "")
 
 - name: set CA path to temporary location
   set_fact:
     gluster_x509_local_ca_path: "{{ test_ca_dir.path }}"
-  when: gluster_x509_local_ca_path is not set or gluster_x509_local_ca_path == ''
+    gluster_x509_local_ca_config_option:  "-config {{ test_ca_dir.path }}/openssl.cnf"
+  when: (gluster_x509_local_ca_path is not defined) or (gluster_x509_local_ca_path == "")
 
 - name: touch index.txt and index.txt.attr
   file:
@@ -41,9 +41,19 @@
     - "{{gluster_x509_local_ca_path}}/index.txt"
     - "{{gluster_x509_local_ca_path}}/index.txt.attr"
 
+- name: is openssl.cnf there?
+  stat:
+    path: "{{ gluster_x509_local_ca_path }}/openssl.cnf"
+  register: openssl_cnf_stat_result
+
+- debug: 
+    msg: "already a openssl.cnf there !!"
+  when: openssl_cnf_stat_result.stat.exists == False
+
+
 - name: make minimal openssl.cnf for test CA 
-  tasks:
-    # CA
+  # CA
+  block:
     - shell: "echo \"[ ca ]\" >  {{ gluster_x509_local_ca_path }}/openssl.cnf"
     - shell: "echo \"default_ca      = CA_default \" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
     - shell: "echo \"[ CA_default ]\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
@@ -67,7 +77,8 @@
     - shell: "echo \"[ policy_anything ]\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
     - shell: "echo \"commonName              = supplied\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
     - shell: "echo \"\" >> {{ gluster_x509_local_ca_path }}/openssl.cnf"
-  creates: "{{ gluster_x509_local_ca_path }}/openssl.cnf"
+  when: openssl_cnf_stat_result.stat.exists == False
+# avoid overwriting 
 
 - name: make the CA key
   command: "openssl genrsa -out {{ gluster_x509_local_ca_path }}/private/cakey.pem -passout pass:{{ gluster_x509_local_ca_passphrase }}  2048"
@@ -86,18 +97,3 @@
     creates: "{{ gluster_x509_local_ca_path }}/cacert.pem"
     # let's not overwrite a cert
   no_log: "{{ gluster_x509_no_log_passwords | bool }}"
-
-# this part sould be another tasks file
-# that would be overkill for a local test.
-# but necessary if a tmp dir is wanted for remote tests
-- name: make tmp dir to test installing certificates in simulated local etcssl under tmp/ansible.something
-  tempfile:
-    state: directory
-    suffix: etcssl
-  register: etcssl_dir
-  when: gluster_x509_certificate_path is not set or gluster_x509_certificate_path == ''
-
-- name: set gluster_x509_certificate_path if it is not set
-  set_fact:
-    gluster_x509_certificate_path: "{{ etcssl_dir.path }}"
-  when: gluster_x509_certificate_path is not set or gluster_x509_certificate_path == ''

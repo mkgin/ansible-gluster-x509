@@ -1,2 +1,5 @@
-localhost
+[gluster_ca_testhosts]
+localhost  ansible_connection=local
+# add remote  test hosts here
+
 

@@ -3,8 +3,8 @@
 # type of certificate to make self_signed or local_ca
 gluster_x509_signing:  self_signed
 # ca bundle creation and maintenance location (on the localhost that runs ansible)
-gluster_x509_local_ca_bundle_dir: /tmp/test_gluster_x509 
-# ca path
+gluster_x509_local_ca_bundle_dir: /tmp/test_gluster_x509_make_ca_bundle
+# ca bundle path
 gluster_x509_ca_bundle_path:   /etc/ssl/glusterfs.ca
 #private key
 gluster_x509_private_key_path: /etc/ssl/glusterfs.key
@@ -23,20 +23,21 @@ gluster_x509_dh_param_path: /etc/ssl/dhparam.pem
 gluster_x509_dh_param_bits: 4096 # 4096 takes a while.
 
 # local CA settings (not used if self signed)
-gluster_x509_local_ca_path:    /tmp/localcatest
+# might be better to not set these and just have a good example and 
+# and fail with a helpful message referring one to the documentation if
+# they are unset
+gluster_x509_local_ca_path: /tmp/gluster_x509_test 
 # config... use the --config option to if the variable is set empty the no config is used
-gluster_x509_local_ca_config_option:  "-config {{gluster_x509_local_ca_path}}/openssl.cnf"
+gluster_x509_local_ca_config_option: "-config {{gluster_x509_local_ca_path}}/openssl.cnf"
 gluster_x509_local_ca_passphrase: "secret"
-# might do this one...
-gluster_x509_local_ca_policy: "" #not implemented yet
 gluster_x509_local_ca_privatekey: "{{gluster_x509_local_ca_path}}/private/cakey.pem"
 gluster_x509_local_ca_requests_dir: "{{gluster_x509_local_ca_path}}/requests/"
 gluster_x509_local_ca_newcerts_dir: "{{gluster_x509_local_ca_path}}/newcerts/"
 gluster_x509_local_ca_certificate: "{{gluster_x509_local_ca_path}}/cacert.pem"
+gluster_x509_local_ca_policy: "" #not implemented yet, maybe later
 
-
-#
 gluster_x509_no_log_passwords: True
+
 # Set to true to testing as local nonroot user
 gluster_assume_openssl_package_installed: False
 # Set to False to testing as local nonroot user

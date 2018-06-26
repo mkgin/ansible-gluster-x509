@@ -1,6 +1,9 @@
 ---
 # tasks file for gluster-x509
 
+- debug: 
+    msg: "gluster_x509_certificate_path = {{gluster_x509_certificate_path }} on {{ ansible_host }}"
+
 - name: install openssl
   import_tasks: install_openssl_package.yml
   when: not gluster_assume_openssl_package_installed
