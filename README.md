@@ -75,7 +75,14 @@ Example Playbook
 
 For now, check the tests.
 
-Some examples after more testing.
+* `test_self_signed.yml`
+* `test_local_ca.yml`
+
+Tests should be copied linked to the main ansible playbook directory and run from there, for example:
+
+`ansible-playbook -i roles.git/gluster-x509/tests/inventory test_local_ca.yml`
+
+`test_local_ca.yml` makes a local test CA in the temporary directory. It depends on the inventory being correctly set ( connection=local for localhost)
 
 License
 -------
