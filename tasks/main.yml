@@ -23,6 +23,10 @@
   args:
     creates: "{{ gluster_x509_private_key_path }}"
 
+# for now we should actually check if there is a valid key
+# skip the csr and self signing part if it is valid for long enough
+# with the defined CA
+
 - name: Generate Certificate Request
   command: "openssl req -new -key {{ gluster_x509_private_key_path}} -out {{ gluster_x509_cert_request_path }} -subj {{ gluster_x509_certificate_subject }}"
   args:
@@ -51,10 +55,15 @@
     dest: "{{ gluster_x509_local_ca_requests_dir }}/{{ ansible_hostname }}_.csr"
     flat: True
   when:  gluster_x509_signing == "local_ca"
+  # AND when something actaully needs to be signed
 
 - name: Sign certificate using local CA
   import_tasks: sign_certificate_with_local_ca.yml
   when:  gluster_x509_signing == "local_ca"
+  # AND when something actaully needs to be signed
+
+# the following test should be moved before the csr is done and only done if there 
+# is a valid certificate in place
 
 - name: Check certificate expiry
   shell: echo $(( ($(date +%s --date="$( openssl x509 -in  {{ gluster_x509_certificate_path }} -enddate -noout |sed 's/notAfter=//')") - $(date +%s)) / 86400 ))
@@ -72,6 +81,7 @@
   when: 
     - certificate_days_left.stdout|int > 0 
     - certificate_days_left.stdout|int < 40
+
 
 - name: Self-signed certificate bundle CA update
   import_tasks: update-self-signed-cert-bundle-ca.yml
